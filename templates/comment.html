@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Komentar Pengaduan - Pengaduan Masyarakat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-white text-2xl font-bold">Pengaduan Masyarakat</a>
+            <div class="relative">
+                <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
+                    <span id="userName">{{ session['name'] }}</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg z-10">
+                    <a href="/tambah_laporan" class="block px-4 py-2 hover:bg-gray-100">Tambah Pengaduan</a>
+                    <a href="/list_laporan" class="block px-4 py-2 hover:bg-gray-100">Pengaduan Saya</a>
+                    <a href="/logout" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mx-auto px-4 mt-4">
+                {% for category, message in messages %}
+                    <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border border-{{ 'green' if category == 'success' else 'red' }}-400 text-{{ 'green' if category == 'success' else 'red' }}-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <div class="container mx-auto mt-8 px-4">
+        <!-- Pengaduan Details -->
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-8">
+            <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-64 object-cover">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-2">{{ laporan.description | truncate(50) }}</h2>
+                <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-4">{{ laporan.type }}</span>
+                <p class="text-gray-600 mb-4">{{ laporan.description }}</p>
+                <div class="text-sm text-gray-500 mb-4">
+                    <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                    <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                    <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                    <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                    <p><strong>Status:</strong> <span class="text-{{ 'yellow' if laporan.response_status == 'Menunggu Verifikasi' else 'green' if laporan.response_status == 'On Process' else 'blue' if laporan.response_status == 'Done' else 'red' }}-600">{{ laporan.response_status }}</span></p>
+                    <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                </div>
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex space-x-2">
+                        <button class="text-gray-600 hover:text-blue-600">👍 {{ laporan.voting or 0 }}</button>
+                    </div>
+                    <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comment Section -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h3 class="text-xl font-bold mb-4">Komentar Masyarakat</h3>
+            <div id="comments-{{ laporan.id }}" class="space-y-4 max-h-96 overflow-y-auto mb-6">
+                <!-- Comments from all users will be loaded here via JavaScript -->
+            </div>
+            <form onsubmit="submitComment(event, '{{ laporan.id }}')" class="flex flex-col">
+                <textarea id="comment-input-{{ laporan.id }}" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 mb-4" rows="4" placeholder="Tulis komentar Anda..." required></textarea>
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 self-end">Kirim Komentar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white p-4 mt-12">
+        <div class="container mx-auto text-center">
+            <p>© 2025 Pengaduan Masyarakat. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Functionality -->
+    <script>
+        // Toggle User Menu
+        document.getElementById('userMenuButton').addEventListener('click', () => {
+            document.getElementById('userMenu').classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#userMenuButton') && !e.target.closest('#userMenu')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+
+        // Fetch comments for the report
+        function fetchComments(reportId) {
+            fetch(`/get_comments/${reportId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const commentsDiv = document.getElementById(`comments-${reportId}`);
+                    commentsDiv.innerHTML = '';
+                    if (data.comments && data.comments.length > 0) {
+                        data.comments.forEach(comment => {
+                            const commentElement = document.createElement('div');
+                            commentElement.className = 'border-l-4 border-blue-600 pl-4 py-3 bg-gray-50 rounded-r-lg';
+                            commentElement.innerHTML = `
+                                <p class="text-sm font-semibold text-gray-800">${comment.user_name} <span class="font-normal text-gray-500 text-xs">(${comment.created_at})</span></p>
+                                <p class="text-gray-700 mt-1">${comment.content}</p>
+                            `;
+                            commentsDiv.appendChild(commentElement);
+                        });
+                    } else {
+                        commentsDiv.innerHTML = '<p class="text-gray-500">Belum ada komentar dari masyarakat.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching comments:', error);
+                    alert('Gagal memuat komentar.');
+                });
+        }
+
+        // Submit a new comment
+        function submitComment(event, reportId) {
+            event.preventDefault();
+            const commentInput = document.getElementById(`comment-input-${reportId}`);
+            const content = commentInput.value.trim();
+
+            if (!content) {
+                alert('Komentar tidak boleh kosong.');
+                return;
+            }
+
+            fetch('/submit_comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'report_id': reportId,
+                    'content': content
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        commentInput.value = ''; // Clear input
+                        fetchComments(reportId); // Refresh comments
+                        alert('Komentar berhasil dikirim.');
+                    } else {
+                        alert('Gagal mengirim komentar: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting comment:', error);
+                    alert('Terjadi kesalahan saat mengirim komentar.');
+                });
+        }
+
+        // Load comments on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchComments('{{ laporan.id }}');
+        });
+    </script>
+</body>
+</html>

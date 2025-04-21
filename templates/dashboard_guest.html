@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Guest - Pengaduan Masyarakat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"მოჅ
+
+    <!-- Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            transition: transform 0.3s ease;
+        }
+        .navbar-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- Navbar -->
+    <nav class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 navbar-shadow sticky top-0 z-20">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-2xl font-bold tracking-tight flex items-center">
+                <i class="fas fa-bullhorn mr-2"></i>Pengaduan Masyarakat
+            </a>
+            <div class="relative">
+                <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none hover:bg-blue-800 px-3 py-2 rounded-lg transition">
+                    <span id="userName" class="font-medium">Guest</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-xl shadow-xl z-10 border border-gray-100">
+                    <a href="/login" class="block px-4 py-3 hover:bg-blue-50 rounded-t-xl transition">Login</a>
+                    <a href="/register" class="block px-4 py-3 hover:bg-blue-50 rounded-b-xl transition">Register</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mx-auto px-4 mt-6">
+                {% for category, message in messages %}
+                    <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border-l-4 border-{{ 'green' if category == 'success' else 'red' }}-500 text-{{ 'green' if category == 'success' else 'red' }}-700 px-6 py-4 rounded-r-lg mb-4 animate-fade-in">
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Pengaduan Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% if all_laporan %}
+                {% for laporan in all_laporan %}
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                        <img src="{{ laporan.image or 'https://via.placeholder.com/400x200?text=Pengaduan' }}" alt="Pengaduan" class="w-full h-48 object-cover">
+                        <div class="p-6">
+                            <h3 class="text-xl font-semibold mb-3 text-gray-800">{{ laporan.description | truncate(30) }}</h3>
+                            <span class="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-3 py-1 rounded-full mb-3">{{ laporan.type }}</span>
+                            <p class="text-gray-600 mb-4 leading-relaxed">{{ laporan.description | truncate(100) }}</p>
+                            <div class="text-sm text-gray-500 space-y-1 mb-4">
+                                <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                                <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                                <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                                <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                                <p><strong>Status:</strong> <span class="text-green-600 font-medium">{{ laporan.statement }}</span></p>
+                                <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                            </div>
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex space-x-3">
+                                    <button class="text-gray-600 hover:text-blue-600 transition flex items-center">
+                                        <i class="fas fa-thumbs-up mr-1"></i>{{ laporan.voting or 0 }}
+                                    </button>
+                                    <button class="text-gray-600 hover:text-blue-600 transition flex items-center">
+                                        <i class="fas fa-eye mr-1"></i>{{ laporan.views or 0 }}
+                                    </button>
+                                </div>
+                            </div>
+                            <a href="#" class="block bg-blue-600 text-white text-center px-4 py-2 rounded-lg hover:bg-blue-700 transition font-medium">Lihat Detail</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-exclamation-circle text-gray-400 text-4xl mb-4"></i>
+                    <p class="text-gray-600 text-lg">Tidak ada pengaduan yang ditemukan.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 mt-12">
+        <div class="container mx-auto text-center">
+            <p class="text-sm">© 2025 Pengaduan Masyarakat. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Toggle User Menu
+        document.getElementById('userMenuButton').addEventListener('click', () => {
+            document.getElementById('userMenu').classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#userMenuButton') && !e.target.closest('#userMenu')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+
+        // Mock location data (unchanged)
+        const locationData = {
+            provinsi: ['Jawa Barat', 'DKI Jakarta', 'Jawa Tengah'],
+            kota: {
+                'Jawa Barat': ['Bandung', 'Bogor', 'Bekasi'],
+                'DKI Jakarta': ['Jakarta Pusat', 'Jakarta Selatan'],
+                'Jawa Tengah': ['Semarang', 'Solo']
+            },
+            kecamatan: {
+                'Bandung': ['Cicalengka', 'Bandung Wetan'],
+                'Jakarta Pusat': ['Tanah Abang', 'Menteng'],
+                'Semarang': ['Semarang Utara', 'Semarang Selatan']
+            },
+            desa: {
+                'Cicalengka': ['Sukamaju', 'Karanganyar'],
+                'Tanah Abang': ['Kebon Melati', 'Bendungan Hilir'],
+                'Semarang Utara': ['Tanjung Mas', 'Bandarharjo']
+            }
+        };
+
+        // Populate Kota based on Provinsi (unchanged)
+        const provinsiSelect = document.getElementById('province');
+        const kotaSelect = document.getElementById('regency');
+        const kecamatanSelect = document.getElementById('subdistrict');
+        const desaSelect = document.getElementById('village');
+
+        if (provinsiSelect) {
+            provinsiSelect.addEventListener('change', (e) => {
+                kotaSelect.innerHTML = '<option value="">Pilih Kota/Kabupaten</option>';
+                kotaSelect.disabled = false;
+                const selectedProv = e.target.value;
+                if (selectedProv && locationData.kota[selectedProv]) {
+                    locationData.kota[selectedProv].forEach(kota => {
+                        const option = document.createElement('option');
+                        option.value = kota;
+                        option.textContent = kota;
+                        kotaSelect.appendChild(option);
+                    });
+                }
+                kecamatanSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+                kecamatanSelect.disabled = true;
+                desaSelect.innerHTML = '<option value="">Pilih Desa</option>';
+                desaSelect.disabled = true;
+            });
+
+            // Populate Kecamatan based on Kota
+            kotaSelect.addEventListener('change', (e) => {
+                kecamatanSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+                kecamatanSelect.disabled = false;
+                const selectedKota = e.target.value;
+                if (selectedKota && locationData.kecamatan[selectedKota]) {
+                    locationData.kecamatan[selectedKota].forEach(kec => {
+                        const option = document.createElement('option');
+                        option.value = kec;
+                        option.textContent = kec;
+                        kecamatanSelect.appendChild(option);
+                    });
+                }
+                desaSelect.innerHTML = '<option value="">Pilih Desa</option>';
+                desaSelect.disabled = true;
+            });
+
+            // Populate Desa based on Kecamatan
+            kecamatanSelect.addEventListener('change', (e) => {
+                desaSelect.innerHTML = '<option value="">Pilih Desa</option>';
+                desaSelect.disabled = false;
+                const selectedKec = e.target.value;
+                if (selectedKec && locationData.desa[selectedKec]) {
+                    locationData.desa[selectedKec].forEach(desa => {
+                        const option = document.createElement('option');
+                        option.value = desa;
+                        option.textContent = desa;
+                        desaSelect.appendChild(option);
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

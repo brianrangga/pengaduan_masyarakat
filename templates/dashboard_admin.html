@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Pengaduan Masyarakat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100">
+    <!-- Navbar -->
+    <nav class="bg-blue-600 p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-white text-2xl font-bold">Pengaduan Masyarakat - Admin</a>
+            <div class="relative">
+                <button onclick="togglePopup()" class="text-white hover:text-gray-200">{{ name }}</button>
+                <div id="userPopup" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg hidden z-10">
+                    <a href="/logout" class="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mx-auto px-4 mt-4">
+                {% for category, message in messages %}
+                    <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border border-{{ 'green' if category == 'success' else 'red' }}-400 text-{{ 'green' if category == 'success' else 'red' }}-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <div class="container mx-auto mt-8 px-4">
+        <!-- Pengelolaan Akun Petugas -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Kelola Akun Petugas</h2>
+                <button onclick="openAddModal()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Tambah Petugas</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-gray-200">
+                            <th class="p-2 text-left">Nama</th>
+                            <th class="p-2 text-left">Email</th>
+                            <th class="p-2 text-left">Provinsi</th>
+                            <th class="p-2 text-left">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="petugasTable">
+                        {% for petugas in petugas_list %}
+                            <tr data-id="{{ petugas.id }}">
+                                <td class="p-2 border-t">{{ petugas.name }}</td>
+                                <td class="p-2 border-t">{{ petugas.email }}</td>
+                                <td class="p-2 border-t">{{ petugas.province }}</td>
+                                <td class="p-2 border-t">
+                                    <button onclick="openEditModal({{ petugas.id }}, '{{ petugas.name }}', '{{ petugas.email }}', '{{ petugas.province }}')" class="text-blue-600 hover:underline">Edit</button>
+                                    <button onclick="deletePetugas({{ petugas.id }})" class="text-red-600 hover:underline ml-2">Hapus</button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Grafik Pengaduan dan Tanggapan -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-4">Statistik Pengaduan dan Tanggapan - Semua Provinsi</h2>
+            <canvas id="pengaduanChart" class="w-full h-96"></canvas>
+        </div>
+    </div>
+
+    <!-- Modal Tambah Petugas -->
+    <div id="addModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4">Tambah Petugas Baru</h2>
+            <form id="addPetugasForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="add-nama">Nama</label>
+                    <input type="text" id="add-nama" name="nama" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Masukkan nama" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="add-email">Email</label>
+                    <input type="email" id="add-email" name="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Masukkan email" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="add-password">Password</label>
+                    <input type="password" id="add-password" name="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" placeholder="Masukkan password" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="add-provinsi">Provinsi</label>
+                    <select id="add-provinsi" name="provinsi" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+                        <option value="">Pilih Provinsi</option>
+                        {% for province in provinces %}
+                            <option value="{{ province }}">{{ province }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="submitAddPetugas()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Simpan</button>
+                    <button type="button" onclick="closeAddModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Edit Petugas -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+            <h2 class="text-xl font-bold mb-4">Edit Petugas</h2>
+            <form id="editPetugasForm">
+                <input type="hidden" id="edit-id" name="id">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="edit-nama">Nama</label>
+                    <input type="text" id="edit-nama" name="nama" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="edit-email">Email</label>
+                    <input type="email" id="edit-email" name="email" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="edit-password">Password (Kosongkan jika tidak diubah)</label>
+                    <input type="password" id="edit-password" name="password" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="edit-provinsi">Provinsi</label>
+                    <select id="edit-provinsi" name="provinsi" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+                        <option value="">Pilih Provinsi</option>
+                        {% for province in provinces %}
+                            <option value="{{ province }}">{{ province }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="submitEditPetugas()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Simpan</button>
+                    <button type="button" onclick="closeEditModal()" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white p-4 mt-12">
+        <div class="container mx-auto text-center">
+            <p>© 2025 Pengaduan Masyarakat. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Functionality -->
+    <script>
+        function togglePopup() {
+            const popup = document.getElementById('userPopup');
+            popup.classList.toggle('hidden');
+        }
+
+        function openAddModal() {
+            document.getElementById('add-nama').value = '';
+            document.getElementById('add-email').value = '';
+            document.getElementById('add-password').value = '';
+            document.getElementById('add-provinsi').value = '';
+            document.getElementById('addModal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.add('hidden');
+        }
+
+        function submitAddPetugas() {
+            const form = document.getElementById('addPetugasForm');
+            const formData = new FormData(form);
+
+            fetch('/admin/add_petugas', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const table = document.getElementById('petugasTable');
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-id', data.petugas.id);
+                    row.innerHTML = `
+                        <td class="p-2 border-t">${data.petugas.name}</td>
+                        <td class="p-2 border-t">${data.petugas.email}</td>
+                        <td class="p-2 border-t">${data.petugas.province}</td>
+                        <td class="p-2 border-t">
+                            <button onclick="openEditModal(${data.petugas.id}, '${data.petugas.name}', '${data.petugas.email}', '${data.petugas.province}')" class="text-blue-600 hover:underline">Edit</button>
+                            <button onclick="deletePetugas(${data.petugas.id})" class="text-red-600 hover:underline ml-2">Hapus</button>
+                        </td>
+                    `;
+                    table.appendChild(row);
+                    closeAddModal();
+                    alert(`Petugas ${data.petugas.name} telah ditambahkan.`);
+                } else {
+                    alert(`Gagal menambahkan petugas: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat menambahkan petugas.');
+            });
+        }
+
+        function openEditModal(id, nama, email, provinsi) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-nama').value = nama;
+            document.getElementById('edit-email').value = email;
+            document.getElementById('edit-password').value = '';
+            document.getElementById('edit-provinsi').value = provinsi;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+        }
+
+        function submitEditPetugas() {
+            const id = document.getElementById('edit-id').value;
+            const form = document.getElementById('editPetugasForm');
+            const formData = new FormData(form);
+
+            fetch(`/admin/edit_petugas/${id}`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.querySelector(`#petugasTable tr[data-id="${id}"]`);
+                    row.innerHTML = `
+                        <td class="p-2 border-t">${data.petugas.name}</td>
+                        <td class="p-2 border-t">${data.petugas.email}</td>
+                        <td class="p-2 border-t">${data.petugas.province}</td>
+                        <td class="p-2 border-t">
+                            <button onclick="openEditModal(${data.petugas.id}, '${data.petugas.name}', '${data.petugas.email}', '${data.petugas.province}')" class="text-blue-600 hover:underline">Edit</button>
+                            <button onclick="deletePetugas(${data.petugas.id})" class="text-red-600 hover:underline ml-2">Hapus</button>
+                        </td>
+                    `;
+                    closeEditModal();
+                    alert(`Petugas ${data.petugas.name} telah diperbarui.`);
+                } else {
+                    alert(`Gagal memperbarui petugas: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat memperbarui petugas.');
+            });
+        }
+
+        function deletePetugas(id) {
+            if (!confirm(`Hapus petugas dengan ID ${id}?`)) return;
+
+            fetch(`/admin/delete_petugas/${id}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.querySelector(`#petugasTable tr[data-id="${id}"]`);
+                    row.remove();
+                    alert('Petugas telah dihapus.');
+                } else {
+                    alert(`Gagal menghapus petugas: ${data.error}`);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat menghapus petugas.');
+            });
+        }
+
+        // Initialize Chart
+        const ctx = document.getElementById('pengaduanChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_data.labels | tojson | safe }},
+                datasets: [
+                    {
+                        label: 'Jumlah Pengaduan',
+                        data: {{ chart_data.reports | tojson | safe }},
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Jumlah Tanggapan',
+                        data: {{ chart_data.responses | tojson | safe }},
+                        backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Jumlah'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Bulan'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+
+        // Close popup on outside click
+        document.addEventListener('click', function(event) {
+            const popup = document.getElementById('userPopup');
+            const button = document.querySelector('nav button');
+            if (!popup.contains(event.target) && !button.contains(event.target)) {
+                popup.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

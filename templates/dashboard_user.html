@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Pengguna - Pengaduan Masyarakat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-white text-2xl font-bold">Pengaduan Masyarakat</a>
+            <div class="relative">
+                <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
+                    <span id="userName">{{ session['name'] }}</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg z-10">
+                    <a href="/tambah_laporan" class="block px-4 py-2 hover:bg-gray-100">Tambah Pengaduan</a>
+                    <a href="/list_laporan" class="block px-4 py-2 hover:bg-gray-100">Pengaduan Saya</a>
+                    <a href="/logout" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mx-auto px-4 mt-4">
+                {% for category, message in messages %}
+                    <div class="bg-{{ 'green' if category == 'success' else 'red' }}-100 border border-{{ 'green' if category == 'success' else 'red' }}-400 text-{{ 'green' if category == 'success' else 'red' }}-700 px-4 py-3 rounded relative" role="alert">
+                        <span class="block sm:inline">{{ message }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <div class="container mx-auto mt-8 px-4">
+        <!-- Button to Add New Report -->
+        <div class="mb-8">
+            <a href="/tambah_laporan" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Tambah Pengaduan Baru</a>
+        </div>
+
+        <!-- Pencarian Berdasarkan Lokasi -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-4">Cari Pengaduan Berdasarkan Lokasi</h2>
+            <form action="/cari_laporan" method="POST" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-gray-700 mb-2" for="province">Provinsi</label>
+                    <select id="province" name="province" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600">
+                        <option value="">Pilih Provinsi</option>
+                        {% for province in provinces %}
+                            <option value="{{ province }}">{{ province }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2" for="regency">Kota/Kabupaten</label>
+                    <select id="regency" name="regency" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" disabled>
+                        <option value="">Pilih Kota/Kabupaten</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2" for="subdistrict">Kecamatan</label>
+                    <select id="subdistrict" name="subdistrict" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" disabled>
+                        <option value="">Pilih Kecamatan</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2" for="village">Desa</label>
+                    <select id="village" name="village" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" disabled>
+                        <option value="">Pilih Desa</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full">Cari</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Laporan Saya -->
+<div class="mb-12">
+    <h2 class="text-xl font-bold mb-4">Laporan Saya</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if user_laporan %}
+            {% for laporan in user_laporan %}
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
+                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
+                        <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
+                        <div class="text-sm text-gray-500 mb-4">
+                            <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                            <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                            <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                            <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                            <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
+                            <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                        </div>
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="flex space-x-2">
+                                <button 
+                                    class="like-button {{ 'text-blue-600' if laporan.has_liked else 'text-gray-600' }} hover:text-blue-600"
+                                    data-report-id="{{ laporan.id }}"
+                                    {{ 'disabled' if laporan.has_liked }}
+                                >
+                                    👍 <span class="vote-count">{{ laporan.voting or 0 }}</span>
+                                </button>
+                            </div>
+                            <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                        </div>
+                        <a href="/comment/{{ laporan.id }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-gray-600">Anda belum membuat pengaduan.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Daftar Laporan -->
+<div>
+    <h2 class="text-xl font-bold mb-4">Daftar Laporan</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if all_laporan %}
+            {% for laporan in all_laporan %}
+                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                    <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
+                    <div class="p-6">
+                        <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
+                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
+                        <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
+                        <div class="text-sm text-gray-500 mb-4">
+                            <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                            <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                            <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                            <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                            <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
+                            <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                        </div>
+                        <div class="flex justify-between items-center mb-4">
+                            <div class="flex space-x-2">
+                                <button 
+                                    class="like-button {{ 'text-blue-600' if laporan.has_liked else 'text-gray-600' }} hover:text-blue-600"
+                                    data-report-id="{{ laporan.id }}"
+                                    {{ 'disabled' if laporan.has_liked }}
+                                >
+                                    👍 <span class="vote-count">{{ laporan.voting or 0 }}</span>
+                                </button>
+                            </div>
+                            <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                        </div>
+                        <a href="/comment/{{ laporan.id }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-gray-600">Tidak ada pengaduan yang ditemukan.</p>
+        {% endif %}
+    </div>
+</div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white p-4 mt-12">
+        <div class="container mx-auto text-center">
+            <p>© 2025 Pengaduan Masyarakat. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Functionality -->
+    <script>
+        // Toggle User Menu
+        document.getElementById('userMenuButton').addEventListener('click', () => {
+            document.getElementById('userMenu').classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#userMenuButton') && !e.target.closest('#userMenu')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+
+        // Handle like button clicks
+        document.querySelectorAll('.like-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const reportId = this.getAttribute('data-report-id');
+                const voteCountSpan = this.querySelector('.vote-count');
+
+                fetch(`/like/${reportId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        voteCountSpan.textContent = data.new_vote_count;
+                        this.classList.remove('text-gray-600');
+                        this.classList.add('text-blue-600');
+                        this.disabled = true;
+                    } else {
+                        alert(data.error || 'Gagal memberikan like');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Terjadi kesalahan saat memberikan like');
+                });
+            });
+        });
+
+        // Initialize dropdowns
+        const provinceSelect = document.getElementById('province');
+        const regencySelect = document.getElementById('regency');
+        const subdistrictSelect = document.getElementById('subdistrict');
+        const villageSelect = document.getElementById('village');
+
+        // Fetch provinces on page load
+        fetch('/get_provinces')
+            .then(response => response.json())
+            .then(data => {
+                provinceSelect.innerHTML = '<option value="">Pilih Provinsi</option>';
+                data.forEach(province => {
+                    const option = document.createElement('option');
+                    option.value = province;
+                    option.textContent = province;
+                    provinceSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error fetching provinces:', error));
+
+        // Fetch regencies when province is selected
+        provinceSelect.addEventListener('change', (e) => {
+            const selectedProvince = e.target.value;
+            regencySelect.innerHTML = '<option value="">Pilih Kota/Kabupaten</option>';
+            regencySelect.disabled = true;
+            subdistrictSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+            subdistrictSelect.disabled = true;
+            villageSelect.innerHTML = '<option value="">Pilih Desa</option>';
+            villageSelect.disabled = true;
+
+            if (selectedProvince) {
+                fetch(`/get_regencies/${encodeURIComponent(selectedProvince)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        regencySelect.disabled = false;
+                        data.forEach(regency => {
+                            const option = document.createElement('option');
+                            option.value = regency;
+                            option.textContent = regency;
+                            regencySelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching regencies:', error));
+            }
+        });
+
+        // Fetch subdistricts when regency is selected
+        regencySelect.addEventListener('change', (e) => {
+            const selectedRegency = e.target.value;
+            subdistrictSelect.innerHTML = '<option value="">Pilih Kecamatan</option>';
+            subdistrictSelect.disabled = true;
+            villageSelect.innerHTML = '<option value="">Pilih Desa</option>';
+            villageSelect.disabled = true;
+
+            if (selectedRegency) {
+                fetch(`/get_subdistricts/${encodeURIComponent(selectedRegency)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        subdistrictSelect.disabled = false;
+                        data.forEach(subdistrict => {
+                            const option = document.createElement('option');
+                            option.value = subdistrict;
+                            option.textContent = subdistrict;
+                            subdistrictSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching subdistricts:', error));
+            }
+        });
+
+        // Fetch villages when subdistrict is selected
+        subdistrictSelect.addEventListener('change', (e) => {
+            const selectedSubdistrict = e.target.value;
+            villageSelect.innerHTML = '<option value="">Pilih Desa</option>';
+            villageSelect.disabled = true;
+
+            if (selectedSubdistrict) {
+                fetch(`/get_villages/${encodeURIComponent(selectedSubdistrict)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        villageSelect.disabled = false;
+                        data.forEach(village => {
+                            const option = document.createElement('option');
+                            option.value = village;
+                            option.textContent = village;
+                            villageSelect.appendChild(option);
+                        });
+                    })
+                    .catch(error => console.error('Error fetching villages:', error));
+            }
+        });
+
+        // Handle like button clicks
+    document.querySelectorAll('.like-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const reportId = this.getAttribute('data-report-id');
+            const voteCountSpan = this.querySelector('.vote-count');
+
+            fetch(`/like/${reportId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    voteCountSpan.textContent = data.new_vote_count;
+                    this.classList.remove('text-gray-600');
+                    this.classList.add('text-blue-600');
+                    this.disabled = true;
+                } else {
+                    alert(data.error || 'Gagal memberikan like');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Terjadi kesalahan saat memberikan like');
+            });
+        });
+    });
+    </script>
+</body>
+</html>

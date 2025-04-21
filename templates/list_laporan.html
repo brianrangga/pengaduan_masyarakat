@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Saya - Pengaduan Masyarakat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <!-- Navbar -->
+    <nav class="bg-blue-600 text-white p-4 shadow-md">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-white text-2xl font-bold">Pengaduan Masyarakat</a>
+            <div class="relative">
+                <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
+                    <span id="userName">{{ session['name'] }}</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg z-10">
+                    <a href="/tambah_laporan" class="block px-4 py-2 hover:bg-gray-100">Tambah Pengaduan</a>
+                    <a href="/list_laporan" class="block px-4 py-2 hover:bg-gray-100">Pengaduan Saya</a>
+                    <a href="/logout" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto mt-8 px-4">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-3 rounded-lg text-white {% if category == 'success' %}bg-green-600{% elif category == 'danger' %}bg-red-600{% else %}bg-blue-600{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Daftar Laporan -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+            <h2 class="text-xl font-bold mb-4">Laporan Saya</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% if laporan_list %}
+                    {% for laporan in laporan_list %}
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Laporan" class="w-full h-48 object-cover">
+                            <div class="p-6">
+                                <h3 class="text-xl font-bold mb-2">{{ laporan.description|truncate(50) }}</h3>
+                                <span class="inline-block text-xs px-2 py-1 rounded-full mb-2
+                                    {% if laporan.type == 'kejahatan' %}bg-red-100 text-red-800
+                                    {% elif laporan.type == 'pembangunan' %}bg-blue-100 text-blue-800
+                                    {% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                    {{ laporan.type|capitalize }}
+                                </span>
+                                <p class="text-gray-600 mb-4">{{ laporan.description|truncate(100) }}</p>
+                                <div class="text-sm text-gray-500 mb-4">
+                                    <p><strong>Provinsi:</strong> {{ laporan.province|capitalize }}</p>
+                                    <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency|capitalize }}</p>
+                                    <p><strong>Kecamatan:</strong> {{ laporan.subdistric|capitalize }}</p>
+                                    <p><strong>Desa:</strong> {{ laporan.village|capitalize }}</p>
+                                    <p><strong>Status:</strong> 
+                                        <span class="{% if laporan.statement == 'Menunggu Verifikasi' %}text-yellow-600
+                                                     {% elif laporan.statement == 'Diproses' %}text-green-600
+                                                     {% else %}text-blue-600{% endif %}">
+                                            {{ laporan.statement }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                                </div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="flex space-x-2">
+                                        <button class="text-gray-600 hover:text-blue-600">👍 {{ laporan.voting or 0 }}</button>
+                                    </div>
+                                    <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                                </div>
+                                <a href="#" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-600">Anda belum membuat laporan.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white p-4 mt-12">
+        <div class="container mx-auto text-center">
+            <p>© 2025 Pengaduan Masyarakat. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript for Functionality -->
+    <script>
+        // Toggle User Menu
+        document.getElementById('userMenuButton').addEventListener('click', () => {
+            document.getElementById('userMenu').classList.toggle('hidden');
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#userMenuButton') && !e.target.closest('#userMenu')) {
+                document.getElementById('userMenu').classList.add('hidden');
+            }
+        });
+        function togglePopup() {
+            const popup = document.getElementById('userPopup');
+            popup.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', function(event) {
+            const popup = document.getElementById('userPopup');
+            const button = document.querySelector('nav button');
+            if (!popup.contains(event.target) && !button.contains(event.target)) {
+                popup.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

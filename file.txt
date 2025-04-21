@@ -1,0 +1,63 @@
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+
+        # Validasi input
+        if not all([name, email, password, confirm_password]):
+            flash('Semua field harus diisi!', 'danger')
+            logging.warning("Registrasi gagal: Semua field harus diisi")
+            return redirect(url_for('register'))
+
+        if password != confirm_password:
+            flash('Password dan konfirmasi tidak cocok.', 'danger')
+            logging.warning("Registrasi gagal: Password tidak cocok")
+            return redirect(url_for('register'))
+
+        try:
+            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            # Cek apakah email sudah terdaftar
+            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+            existing_user = cur.fetchone()
+
+            if existing_user:
+                flash('Email sudah terdaftar.', 'danger')
+                logging.warning(f"Registrasi gagal: Email {email} sudah terdaftar")
+                cur.close()
+                return redirect(url_for('register'))
+
+            # Siapkan data untuk disimpan
+            hashed_password = generate_password_hash(password)
+            role = 'masyarakat'  # Role otomatis diset sebagai masyarakat
+
+            # Simpan data ke database
+            cur.execute(
+                "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)",
+                (name, email, hashed_password, role)
+            )
+            mysql.connection.commit()
+
+            # Verifikasi bahwa role tersimpan dengan benar
+            cur.execute("SELECT id, role FROM users WHERE email = %s", (email,))
+            new_user = cur.fetchone()
+            if new_user and new_user['role'] == 'masyarakat':
+                logging.info(f"Registrasi berhasil: {email} disimpan dengan role '{new_user['role']}'")
+            else:
+                logging.error(f"Registrasi gagal: Role untuk {email} tidak disimpan sebagai 'masyarakat'")
+                flash('Terjadi kesalahan saat menyimpan role.', 'danger')
+                cur.close()
+                return redirect(url_for('register'))
+
+            cur.close()
+            flash('Registrasi berhasil sebagai masyarakat! Silakan login.', 'success')
+            return redirect(url_for('login'))
+
+        except Exception as e:
+            flash(f'Error database: {str(e)}', 'danger')
+            logging.error(f"Database error selama registrasi: {str(e)}")
+            return redirect(url_for('register'))
+
+    return render_template('register.html')
