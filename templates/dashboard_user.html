@@ -86,88 +86,89 @@
         </div>
 
         <!-- Laporan Saya -->
-<div class="mb-12">
-    <h2 class="text-xl font-bold mb-4">Laporan Saya</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% if user_laporan %}
-            {% for laporan in user_laporan %}
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
-                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
-                        <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
-                        <div class="text-sm text-gray-500 mb-4">
-                            <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
-                            <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
-                            <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
-                            <p><strong>Desa:</strong> {{ laporan.village }}</p>
-                            <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
-                            <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
-                        </div>
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="flex space-x-2">
-                                <button 
-                                    class="like-button {{ 'text-blue-600' if laporan.has_liked else 'text-gray-600' }} hover:text-blue-600"
-                                    data-report-id="{{ laporan.id }}"
-                                    {{ 'disabled' if laporan.has_liked }}
-                                >
-                                    👍 <span class="vote-count">{{ laporan.voting or 0 }}</span>
-                                </button>
+        <div class="mb-12">
+            <h2 class="text-xl font-bold mb-4">Laporan Saya</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% if user_laporan %}
+                    {% for laporan in user_laporan %}
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
+                            <div class="p-6">
+                                <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
+                                <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
+                                <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
+                                <div class="text-sm text-gray-500 mb-4">
+                                    <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                                    <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                                    <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                                    <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                                    <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
+                                    <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                                </div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="flex space-x-2">
+                                        <button 
+                                            class="like-button {{ 'text-blue-600' if laporan.has_liked else 'text-gray-600' }} hover:text-blue-600"
+                                            data-report-id="{{ laporan.id }}"
+                                            {{ 'disabled' if laporan.has_liked }}
+                                        >
+                                            👍 <span class="vote-count">{{ laporan.voting or 0 }}</span>
+                                        </button>
+                                    </div>
+                                    <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                                </div>
+                                <a href="/comment/{{ laporan.id }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
                             </div>
-                            <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
                         </div>
-                        <a href="/comment/{{ laporan.id }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <p class="text-gray-600">Anda belum membuat pengaduan.</p>
-        {% endif %}
-    </div>
-</div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-600">Anda belum membuat pengaduan.</p>
+                {% endif %}
+            </div>
+        </div>
 
-<!-- Daftar Laporan -->
-<div>
-    <h2 class="text-xl font-bold mb-4">Daftar Laporan</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% if all_laporan %}
-            {% for laporan in all_laporan %}
-                <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                    <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
-                    <div class="p-6">
-                        <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
-                        <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
-                        <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
-                        <div class="text-sm text-gray-500 mb-4">
-                            <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
-                            <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
-                            <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
-                            <p><strong>Desa:</strong> {{ laporan.village }}</p>
-                            <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
-                            <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
-                        </div>
-                        <div class="flex justify-between items-center mb-4">
-                            <div class="flex space-x-2">
-                                <button 
-                                    class="like-button {{ 'text-blue-600' if laporan.has_liked else 'text-gray-600' }} hover:text-blue-600"
-                                    data-report-id="{{ laporan.id }}"
-                                    {{ 'disabled' if laporan.has_liked }}
-                                >
-                                    👍 <span class="vote-count">{{ laporan.voting or 0 }}</span>
-                                </button>
+        <!-- Daftar Laporan -->
+        <div>
+            <h2 class="text-xl font-bold mb-4">Daftar Laporan</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% if all_laporan %}
+                    {% for laporan in all_laporan %}
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                            <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
+                            <div class="p-6">
+                                <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
+                                <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
+                                <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
+                                <div class="text-sm text-gray-500 mb-4">
+                                    <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                                    <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                                    <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                                    <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                                    <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
+                                    <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                                </div>
+                                <div class="flex justify-between items-center mb-4">
+                                    <div class="flex space-x-2">
+                                        <button 
+                                            class="like-button {{ 'text-blue-600' if laporan.has_liked else 'text-gray-600' }} hover:text-blue-600"
+                                            data-report-id="{{ laporan.id }}"
+                                            {{ 'disabled' if laporan.has_liked }}
+                                        >
+                                            👍 <span class="vote-count">{{ laporan.voting or 0 }}</span>
+                                        </button>
+                                    </div>
+                                    <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                                </div>
+                                <a href="/comment/{{ laporan.id }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
                             </div>
-                            <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
                         </div>
-                        <a href="/comment/{{ laporan.id }}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Lihat Detail</a>
-                    </div>
-                </div>
-            {% endfor %}
-        {% else %}
-            <p class="text-gray-600">Tidak ada pengaduan yang ditemukan.</p>
-        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-gray-600">Tidak ada pengaduan yang ditemukan.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
-</div>
 
     <!-- Footer -->
     <footer class="bg-blue-600 text-white p-4 mt-12">
@@ -188,36 +189,6 @@
             if (!e.target.closest('#userMenuButton') && !e.target.closest('#userMenu')) {
                 document.getElementById('userMenu').classList.add('hidden');
             }
-        });
-
-        // Handle like button clicks
-        document.querySelectorAll('.like-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const reportId = this.getAttribute('data-report-id');
-                const voteCountSpan = this.querySelector('.vote-count');
-
-                fetch(`/like/${reportId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        voteCountSpan.textContent = data.new_vote_count;
-                        this.classList.remove('text-gray-600');
-                        this.classList.add('text-blue-600');
-                        this.disabled = true;
-                    } else {
-                        alert(data.error || 'Gagal memberikan like');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Terjadi kesalahan saat memberikan like');
-                });
-            });
         });
 
         // Initialize dropdowns
@@ -313,34 +284,34 @@
         });
 
         // Handle like button clicks
-    document.querySelectorAll('.like-button').forEach(button => {
-        button.addEventListener('click', function() {
-            const reportId = this.getAttribute('data-report-id');
-            const voteCountSpan = this.querySelector('.vote-count');
+        document.querySelectorAll('.like-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const reportId = this.getAttribute('data-report-id');
+                const voteCountSpan = this.querySelector('.vote-count');
 
-            fetch(`/like/${reportId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    voteCountSpan.textContent = data.new_vote_count;
-                    this.classList.remove('text-gray-600');
-                    this.classList.add('text-blue-600');
-                    this.disabled = true;
-                } else {
-                    alert(data.error || 'Gagal memberikan like');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan saat memberikan like');
+                fetch(`/like/${reportId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        voteCountSpan.textContent = data.new_vote_count;
+                        this.classList.remove('text-gray-600');
+                        this.classList.add('text-blue-600');
+                        this.disabled = true;
+                    } else {
+                        alert(data.error || 'Gagal memberikan like');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Terjadi kesalahan saat memberikan like');
+                });
             });
         });
-    });
     </script>
 </body>
 </html>

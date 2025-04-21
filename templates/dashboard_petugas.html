@@ -62,37 +62,52 @@
         </div>
 
         <!-- Daftar Pengaduan -->
-        <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
-            <h2 class="text-xl font-bold mb-4">Data Pengaduan - {{ province }}</h2>
-            <div id="pengaduanList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for laporan in all_laporan %}
-                    <div class="bg-white rounded-lg shadow-lg overflow-hidden" data-likes="{{ laporan.voting or 0 }}" data-tanggal="{{ laporan.created_at.strftime('%Y-%m-%d') }}">
-                        <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
-                        <div class="p-6">
-                            <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
-                            <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
-                            <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
-                            <div class="text-sm text-gray-500 mb-4">
-                                <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
-                                <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
-                                <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
-                                <p><strong>Desa:</strong> {{ laporan.village }}</p>
-                                <p><strong>Status:</strong> <span class="text-{{ 'yellow' if laporan.response_status == 'Menunggu Verifikasi' else 'green' if laporan.response_status == 'On Process' else 'blue' if laporan.response_status == 'Done' else 'red' }}-600">{{ laporan.response_status }}</span></p>
-                                <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
-                            </div>
-                            <div class="flex justify-between items-center mb-4">
-                                <div class="flex space-x-2">
-                                    <button class="text-gray-600 hover:text-blue-600">👍 {{ laporan.voting or 0 }}</button>
-                                </div>
-                                <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
-                            </div>
-                            <button onclick="openTanggapanModal('{{ laporan.description | truncate(30) }}', '{{ laporan.id }}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Tanggapi</button>
-                        </div>
+        <!-- Daftar Pengaduan -->
+<div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+    <h2 class="text-xl font-bold mb-4">Data Pengaduan - {{ province }}</h2>
+    <div id="pengaduanList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for laporan in all_laporan %}
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden" data-likes="{{ laporan.voting or 0 }}" data-tanggal="{{ laporan.created_at.strftime('%Y-%m-%d') }}">
+                <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
+                <div class="p-6">
+                    <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
+                    <span class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full mb-2">{{ laporan.type }}</span>
+                    <p class="text-gray-600 mb-4">{{ laporan.description | truncate(100) }}</p>
+                    <div class="text-sm text-gray-500 mb-4">
+                        <p><strong>Provinsi:</strong> {{ laporan.province }}</p>
+                        <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
+                        <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
+                        <p><strong>Desa:</strong> {{ laporan.village }}</p>
+                        <p><strong>Status:</strong> <span class="text-{{ 'yellow' if laporan.statement == 'Menunggu Verifikasi' else 'green' if laporan.statement == 'ON PROCESS' else 'blue' if laporan.statement == 'DONE' else 'red' }}-600">{{ laporan.statement }}</span></p>
+                        <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                        <!-- Riwayat Tanggapan -->
+                        {% if laporan.response_history %}
+                            <p><strong>Riwayat Tanggapan:</strong></p>
+                            <ul class="list-disc ml-5">
+                                {% for history in laporan.response_history %}
+                                    <li>
+                                        <span class="text-{{ 'yellow' if history.status == 'Menunggu Verifikasi' else 'green' if history.status == 'ON PROCESS' else 'blue' if history.status == 'DONE' else 'red' }}-600">{{ history.status }}</span>
+                                        oleh {{ history.changed_by_name }} pada {{ history.changed_at.strftime('%d %B %Y %H:%M') }}
+                                        {% if history.comment %}
+                                            - Komentar: {{ history.comment }}
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
                     </div>
-                {% endfor %}
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex space-x-2">
+                            <button onclick="likeReport('{{ laporan.id }}', this)" class="text-gray-600 hover:text-blue-600 {{ 'text-blue-600' if laporan.has_liked else '' }}" {{ 'disabled' if laporan.has_liked else '' }}>👍 <span class="vote-count">{{ laporan.voting or 0 }}</span></button>
+                        </div>
+                        <span class="text-gray-500 text-sm">{{ laporan.views or 0 }} views</span>
+                    </div>
+                    <button onclick="openTanggapanModal('{{ laporan.description | truncate(30) }}', '{{ laporan.id }}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Tanggapi</button>
+                </div>
             </div>
-        </div>
+        {% endfor %}
     </div>
+</div>
 
     <!-- Modal Tanggapan -->
     <div id="tanggapanModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">

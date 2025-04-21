@@ -1,63 +1,97 @@
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
+-- Database: db_pengaduan
+CREATE DATABASE IF NOT EXISTS db_pengaduan;
+USE db_pengaduan;
 
-        # Validasi input
-        if not all([name, email, password, confirm_password]):
-            flash('Semua field harus diisi!', 'danger')
-            logging.warning("Registrasi gagal: Semua field harus diisi")
-            return redirect(url_for('register'))
+-- Table: users
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('masyarakat', 'petugas', 'admin') NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-        if password != confirm_password:
-            flash('Password dan konfirmasi tidak cocok.', 'danger')
-            logging.warning("Registrasi gagal: Password tidak cocok")
-            return redirect(url_for('register'))
+-- Table: location
+CREATE TABLE location (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    province VARCHAR(255) NOT NULL,
+    regency VARCHAR(255) NOT NULL,
+    subdistrict VARCHAR(255) NOT NULL,
+    village VARCHAR(255) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE(province, regency, subdistrict, village)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-        try:
-            cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            # Cek apakah email sudah terdaftar
-            cur.execute("SELECT * FROM users WHERE email = %s", (email,))
-            existing_user = cur.fetchone()
+-- Table: staff_provinces
+CREATE TABLE staff_provinces (
+    user_id INT NOT NULL,
+    location_id INT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (location_id) REFERENCES location(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-            if existing_user:
-                flash('Email sudah terdaftar.', 'danger')
-                logging.warning(f"Registrasi gagal: Email {email} sudah terdaftar")
-                cur.close()
-                return redirect(url_for('register'))
+-- Table: reports
+CREATE TABLE reports (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    description TEXT NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    province VARCHAR(255) NOT NULL,
+    regency VARCHAR(255) NOT NULL,
+    subdistrict VARCHAR(255) NOT NULL,
+    village VARCHAR(255) NOT NULL,
+    statement VARCHAR(255) DEFAULT 'Menunggu Verifikasi',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    image VARCHAR(255),
+    voting INT DEFAULT 0,
+    views INT DEFAULT 0,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-            # Siapkan data untuk disimpan
-            hashed_password = generate_password_hash(password)
-            role = 'masyarakat'  # Role otomatis diset sebagai masyarakat
+-- Table: responses
+CREATE TABLE responses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    report_id INT NOT NULL,
+    response_status VARCHAR(255) NOT NULL,
+    user_id INT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-            # Simpan data ke database
-            cur.execute(
-                "INSERT INTO users (name, email, password, role) VALUES (%s, %s, %s, %s)",
-                (name, email, hashed_password, role)
-            )
-            mysql.connection.commit()
+-- Table: comments
+CREATE TABLE comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    report_id INT NOT NULL,
+    comment TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-            # Verifikasi bahwa role tersimpan dengan benar
-            cur.execute("SELECT id, role FROM users WHERE email = %s", (email,))
-            new_user = cur.fetchone()
-            if new_user and new_user['role'] == 'masyarakat':
-                logging.info(f"Registrasi berhasil: {email} disimpan dengan role '{new_user['role']}'")
-            else:
-                logging.error(f"Registrasi gagal: Role untuk {email} tidak disimpan sebagai 'masyarakat'")
-                flash('Terjadi kesalahan saat menyimpan role.', 'danger')
-                cur.close()
-                return redirect(url_for('register'))
+-- Table: report_votes (untuk fitur Like)
+CREATE TABLE report_votes (
+    user_id INT NOT NULL,
+    report_id INT NOT NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (user_id, report_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-            cur.close()
-            flash('Registrasi berhasil sebagai masyarakat! Silakan login.', 'success')
-            return redirect(url_for('login'))
-
-        except Exception as e:
-            flash(f'Error database: {str(e)}', 'danger')
-            logging.error(f"Database error selama registrasi: {str(e)}")
-            return redirect(url_for('register'))
-
-    return render_template('register.html')
+-- Indexes for optimization
+CREATE INDEX idx_reports_user_id ON reports(user_id);
+CREATE INDEX idx_responses_report_id ON responses(report_id);
+CREATE INDEX idx_comments_report_id ON comments(report_id);
+CREATE INDEX idx_report_votes_user_id ON report_votes(user_id);
+CREATE INDEX idx_report_votes_report_id ON report_votes(report_id);
