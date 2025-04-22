@@ -491,11 +491,13 @@ def dashboard_user():
         flash('Akses ditolak!', 'danger')
         return redirect(url_for('login'))
 
+    # Ambil parameter sorting dari query string (default: likes-desc)
+    sort_by = request.args.get('sort', 'likes-desc')
+
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        # Fetch all reports
-        cur.execute(
-            """
+        # Fetch all reports dengan sorting berdasarkan voting
+        query_all = """
             SELECT 
                 r.id, 
                 r.description, 
@@ -520,8 +522,14 @@ def dashboard_user():
                     GROUP BY report_id
                 )
             ) res ON r.id = res.report_id
-            """
-        )
+        """
+        # Tambahkan ORDER BY berdasarkan parameter sorting
+        if sort_by == 'likes-desc':
+            query_all += " ORDER BY r.voting DESC"
+        elif sort_by == 'likes-asc':
+            query_all += " ORDER BY r.voting ASC"
+
+        cur.execute(query_all)
         all_laporan = cur.fetchall()
 
         # Track views for each report
@@ -555,9 +563,8 @@ def dashboard_user():
         # Commit the view updates
         mysql.connection.commit()
 
-        # Fetch user's reports
-        cur.execute(
-            """
+        # Fetch user's reports dengan sorting yang sama
+        query_user = """
             SELECT 
                 r.id, 
                 r.description, 
@@ -583,9 +590,14 @@ def dashboard_user():
                 )
             ) res ON r.id = res.report_id
             WHERE r.user_id = %s
-            """,
-            (session['user_id'],)
-        )
+        """
+        # Tambahkan ORDER BY untuk user_laporan
+        if sort_by == 'likes-desc':
+            query_user += " ORDER BY r.voting DESC"
+        elif sort_by == 'likes-asc':
+            query_user += " ORDER BY r.voting ASC"
+
+        cur.execute(query_user, (session['user_id'],))
         user_laporan = cur.fetchall()
         for laporan in user_laporan:
             cur.execute(
@@ -605,7 +617,8 @@ def dashboard_user():
             provinces=provinces,
             regencies=regencies,
             subdistricts=subdistricts,
-            villages=villages
+            villages=villages,
+            sort_by=sort_by  # Kirim parameter sorting ke template
         )
     except Exception as e:
         flash(f'Error database: {str(e)}', 'danger')
@@ -653,6 +666,9 @@ def dashboard_petugas():
         flash('Akses ditolak!', 'danger')
         return redirect(url_for('login'))
 
+    # Ambil parameter sorting dari query string (default: likes-desc)
+    sort_by = request.args.get('sort', 'likes-desc')
+
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cur.execute("SELECT location_id FROM staff_provinces WHERE user_id = %s", (session['user_id'],))
@@ -671,8 +687,8 @@ def dashboard_petugas():
             cur.close()
             return redirect(url_for('login'))
 
-        cur.execute(
-            """
+        # Query untuk mengambil pengaduan dengan sorting berdasarkan voting
+        query = """
             SELECT 
                 r.id, 
                 r.description, 
@@ -698,9 +714,16 @@ def dashboard_petugas():
                 )
             ) res ON r.id = res.report_id
             WHERE r.province = %s
-            """,
-            (petugas_province,)
-        )
+        """
+        params = [petugas_province]
+
+        # Tambahkan ORDER BY berdasarkan parameter sorting
+        if sort_by == 'likes-desc':
+            query += " ORDER BY r.voting DESC"
+        elif sort_by == 'likes-asc':
+            query += " ORDER BY r.voting ASC"
+
+        cur.execute(query, params)
         all_laporan = cur.fetchall()
 
         # Fetch response progress history for each report
@@ -735,7 +758,8 @@ def dashboard_petugas():
             provinces=provinces,
             regencies=regencies,
             subdistricts=subdistricts,
-            villages=villages
+            villages=villages,
+            sort_by=sort_by
         )
     except Exception as e:
         flash(f'Error database: {str(e)}', 'danger')
@@ -1058,6 +1082,9 @@ def export_pengaduan(province, start_date, end_date):
     if 'user_id' not in session or session['role'] != 'petugas':
         return jsonify({'error': 'Akses ditolak!'}), 403
 
+    # Ambil parameter sorting dari query string (default: likes-desc)
+    sort_by = request.args.get('sort', 'likes-desc')
+
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         query = """
@@ -1092,8 +1119,11 @@ def export_pengaduan(province, start_date, end_date):
             query += " AND r.created_at BETWEEN %s AND %s"
             params.extend([start_date, end_date + ' 23:59:59'])
 
-        # Tambahkan pengurutan berdasarkan voting (likes) dari terbanyak ke tersedikit
-        query += " ORDER BY r.voting DESC"
+        # Tambahkan pengurutan berdasarkan voting (likes) sesuai parameter sorting
+        if sort_by == 'likes-desc':
+            query += " ORDER BY r.voting DESC"
+        elif sort_by == 'likes-asc':
+            query += " ORDER BY r.voting ASC"
 
         cur.execute(query, params)
         data = cur.fetchall()

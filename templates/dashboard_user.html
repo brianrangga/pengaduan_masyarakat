@@ -146,6 +146,20 @@
                                     <p><strong>Desa:</strong> {{ laporan.village }}</p>
                                     <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
                                     <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                                    {% if laporan.response_history %}
+                                    <p><strong>Riwayat Tanggapan:</strong></p>
+                                        <ul class="list-disc ml-5">
+                                            {% for history in laporan.response_history %}
+                                                <li>
+                                                    <span class="text-{{ 'yellow' if history.status == 'Menunggu Verifikasi' else 'green' if history.status == 'ON PROCESS' else 'blue' if history.status == 'DONE' else 'red' }}-600">{{ history.status }}</span>
+                                                    oleh {{ history.changed_by_name }} pada {{ history.changed_at.strftime('%d %B %Y %H:%M') }}
+                                                    {% if history.comment %}
+                                                        - Komentar: {{ history.comment }}
+                                                    {% endif %}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
                                 </div>
                                 <div class="flex justify-between items-center mb-4">
                                     <div class="flex space-x-2">
