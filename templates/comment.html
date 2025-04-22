@@ -13,15 +13,20 @@
             <a href="/" class="text-white text-2xl font-bold">Pengaduan Masyarakat</a>
             <div class="relative">
                 <button id="userMenuButton" class="flex items-center space-x-2 focus:outline-none">
-                    <span id="userName">{{ session['name'] }}</span>
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 24">
+                    <span id="userName">{{ session['name'] if session['name'] else 'Guest' }}</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
                 <div id="userMenu" class="hidden absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-lg z-10">
-                    <a href="/tambah_laporan" class="block px-4 py-2 hover:bg-gray-100">Tambah Pengaduan</a>
-                    <a href="/list_laporan" class="block px-4 py-2 hover:bg-gray-100">Pengaduan Saya</a>
-                    <a href="/logout" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                    {% if 'user_id' in session %}
+                        <a href="/tambah_laporan" class="block px-4 py-2 hover:bg-gray-100">Tambah Pengaduan</a>
+                        <a href="/list_laporan" class="block px-4 py-2 hover:bg-gray-100">Pengaduan Saya</a>
+                        <a href="/logout" class="block px-4 py-2 text-red-600 hover:bg-gray-100">Logout</a>
+                    {% else %}
+                        <a href="/login" class="block px-4 py-2 hover:bg-gray-100">Login</a>
+                        <a href="/register" class="block px-4 py-2 hover:bg-gray-100">Register</a>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -72,10 +77,14 @@
             <div id="comments-{{ laporan.id }}" class="space-y-4 max-h-96 overflow-y-auto mb-6">
                 <!-- Comments from all users will be loaded here via JavaScript -->
             </div>
-            <form onsubmit="submitComment(event, '{{ laporan.id }}')" class="flex flex-col">
-                <textarea id="comment-input-{{ laporan.id }}" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 mb-4" rows="4" placeholder="Tulis komentar Anda..." required></textarea>
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 self-end">Kirim Komentar</button>
-            </form>
+            {% if 'user_id' in session %}
+                <form onsubmit="submitComment(event, '{{ laporan.id }}')" class="flex flex-col">
+                    <textarea id="comment-input-{{ laporan.id }}" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 mb-4" rows="4" placeholder="Tulis komentar Anda..." required></textarea>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 self-end">Kirim Komentar</button>
+                </form>
+            {% else %}
+                <p class="text-gray-500">Silakan <a href="/login" class="text-blue-600 hover:underline">login</a> untuk menambahkan komentar.</p>
+            {% endif %}
         </div>
     </div>
 
@@ -127,7 +136,7 @@
                 });
         }
 
-        // Submit a new comment
+        // Submit a new comment (only for logged-in users)
         function submitComment(event, reportId) {
             event.preventDefault();
             const commentInput = document.getElementById(`comment-input-${reportId}`);

@@ -48,7 +48,7 @@
             <a href="/tambah_laporan" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">Tambah Pengaduan Baru</a>
         </div>
 
-        <!-- Pencarian Berdasarkan Lokasi -->
+        <!-- Pencarian Berdasarkan Lokasi dan Filter -->
         <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
             <h2 class="text-xl font-bold mb-4">Cari Pengaduan Berdasarkan Lokasi</h2>
             <form action="/cari_laporan" method="POST" class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -83,15 +83,23 @@
                     <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 w-full">Cari</button>
                 </div>
             </form>
+            <!-- Dropdown untuk Pengurutan -->
+            <div class="mt-4">
+                <label class="block text-gray-700 mb-2" for="sort-voting">Urutkan Berdasarkan Voting</label>
+                <select id="sort-voting" class="w-full md:w-1/4 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" onchange="sortPengaduan()">
+                    <option value="likes-desc" {% if sort_by == 'likes-desc' %}selected{% endif %}>Like Terbanyak</option>
+                    <option value="likes-asc" {% if sort_by == 'likes-asc' %}selected{% endif %}>Like Terdikit</option>
+                </select>
+            </div>
         </div>
 
         <!-- Laporan Saya -->
         <div class="mb-12">
             <h2 class="text-xl font-bold mb-4">Laporan Saya</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="userLaporanList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% if user_laporan %}
                     {% for laporan in user_laporan %}
-                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden" data-likes="{{ laporan.voting or 0 }}">
                             <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
                             <div class="p-6">
                                 <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
@@ -102,8 +110,23 @@
                                     <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
                                     <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
                                     <p><strong>Desa:</strong> {{ laporan.village }}</p>
-                                    <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
+                                    <p><strong>Status:</strong> <span class="text-{{ 'yellow' if laporan.statement == 'Menunggu Verifikasi' else 'green' if laporan.statement == 'ON PROCESS' else 'blue' if laporan.statement == 'DONE' else 'red' }}-600">{{ laporan.statement }}</span></p>
                                     <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                                    <!-- Riwayat Tanggapan -->
+                                    {% if laporan.response_history %}
+                                        <p><strong>Riwayat Tanggapan:</strong></p>
+                                        <ul class="list-disc ml-5">
+                                            {% for history in laporan.response_history %}
+                                                <li>
+                                                    <span class="text-{{ 'yellow' if history.status == 'Menunggu Verifikasi' else 'green' if history.status == 'ON PROCESS' else 'blue' if history.status == 'DONE' else 'red' }}-600">{{ history.status }}</span>
+                                                    oleh {{ history.changed_by_name }} pada {{ history.changed_at.strftime('%d %B %Y %H:%M') }}
+                                                    {% if history.comment %}
+                                                        - Komentar: {{ history.comment }}
+                                                    {% endif %}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
                                 </div>
                                 <div class="flex justify-between items-center mb-4">
                                     <div class="flex space-x-2">
@@ -130,10 +153,10 @@
         <!-- Daftar Laporan -->
         <div>
             <h2 class="text-xl font-bold mb-4">Daftar Laporan</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="allLaporanList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% if all_laporan %}
                     {% for laporan in all_laporan %}
-                        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+                        <div class="bg-white rounded-lg shadow-lg overflow-hidden" data-likes="{{ laporan.voting or 0 }}">
                             <img src="{{ laporan.image or 'https://via.placeholder.com/400x200' }}" alt="Pengaduan" class="w-full h-48 object-cover">
                             <div class="p-6">
                                 <h3 class="text-xl font-bold mb-2">{{ laporan.description | truncate(30) }}</h3>
@@ -144,10 +167,11 @@
                                     <p><strong>Kota/Kabupaten:</strong> {{ laporan.regency }}</p>
                                     <p><strong>Kecamatan:</strong> {{ laporan.subdistrict }}</p>
                                     <p><strong>Desa:</strong> {{ laporan.village }}</p>
-                                    <p><strong>Status:</strong> <span class="text-green-600">{{ laporan.response_status or 'Menunggu Verifikasi' }}</span></p>
+                                    <p><strong>Status:</strong> <span class="text-{{ 'yellow' if laporan.statement == 'Menunggu Verifikasi' else 'green' if laporan.statement == 'ON PROCESS' else 'blue' if laporan.statement == 'DONE' else 'red' }}-600">{{ laporan.statement }}</span></p>
                                     <p><strong>Tanggal:</strong> {{ laporan.created_at.strftime('%d %B %Y') }}</p>
+                                    <!-- Riwayat Tanggapan -->
                                     {% if laporan.response_history %}
-                                    <p><strong>Riwayat Tanggapan:</strong></p>
+                                        <p><strong>Riwayat Tanggapan:</strong></p>
                                         <ul class="list-disc ml-5">
                                             {% for history in laporan.response_history %}
                                                 <li>
@@ -316,6 +340,7 @@
                         this.classList.remove('text-gray-600');
                         this.classList.add('text-blue-600');
                         this.disabled = true;
+                        this.closest('.bg-white').dataset.likes = data.new_vote_count; // Update dataset for sorting
                     } else {
                         alert(data.error || 'Gagal memberikan like');
                     }
@@ -326,6 +351,12 @@
                 });
             });
         });
+
+        // Handle sorting by voting
+        function sortPengaduan() {
+            const sortValue = document.getElementById('sort-voting').value;
+            window.location.href = `/dashboard/user?sort=${sortValue}`; // Redirect with sort parameter
+        }
     </script>
 </body>
 </html>

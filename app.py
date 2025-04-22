@@ -233,11 +233,11 @@ def logout():
     logging.info("User logged out")
     return redirect(url_for('index'))
 
-# Home
+# Home (Guest)
 @app.route('/')
 def index():
     if 'user_id' in session:
-        return redirect(url_for(f'dashboard_user'))
+        return redirect(url_for('dashboard_user'))
     
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
@@ -248,13 +248,182 @@ def index():
             """
         )
         all_laporan = cur.fetchall()
+
+        # Tambah views untuk setiap laporan setiap kali halaman di-load
+        for laporan in all_laporan:
+            cur.execute(
+                "UPDATE reports SET views = views + 1 WHERE id = %s",
+                (laporan['id'],)
+            )
+
+        mysql.connection.commit()
         cur.close()
+
         provinces, regencies, subdistricts, villages = get_location_baru_data()
         return render_template('dashboard_guest.html', all_laporan=all_laporan, provinces=provinces, regencies=regencies, subdistricts=subdistricts, villages=villages)
     except Exception as e:
         flash(f'Error database: {str(e)}', 'danger')
         logging.error(f"Database error during index: {str(e)}")
         return render_template('dashboard_guest.html', all_laporan=[])
+
+# Dashboard Pengguna (Masyarakat)
+@app.route('/dashboard/user')
+def dashboard_user():
+    if 'user_id' not in session or session['role'] != 'masyarakat':
+        flash('Akses ditolak!', 'danger')
+        return redirect(url_for('login'))
+
+    # Ambil parameter sorting dari query string (default: likes-desc)
+    sort_by = request.args.get('sort', 'likes-desc')
+
+    try:
+        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+        # Fetch all reports dengan sorting berdasarkan voting
+        query_all = """
+            SELECT 
+                r.id, 
+                r.description, 
+                r.type, 
+                r.province, 
+                r.regency, 
+                r.subdistrict, 
+                r.village, 
+                r.statement, 
+                r.created_at, 
+                r.voting, 
+                r.views, 
+                r.image,
+                res.response_status
+            FROM reports r
+            LEFT JOIN (
+                SELECT report_id, response_status
+                FROM responses
+                WHERE (report_id, created_at) IN (
+                    SELECT report_id, MAX(created_at)
+                    FROM responses
+                    GROUP BY report_id
+                )
+            ) res ON r.id = res.report_id
+        """
+        # Tambahkan ORDER BY berdasarkan parameter sorting
+        if sort_by == 'likes-desc':
+            query_all += " ORDER BY r.voting DESC"
+        elif sort_by == 'likes-asc':
+            query_all += " ORDER BY r.voting ASC"
+
+        cur.execute(query_all)
+        all_laporan = cur.fetchall()
+
+        # Tambah views untuk setiap laporan setiap kali halaman di-load
+        for laporan in all_laporan:
+            # Increment views di tabel reports
+            cur.execute(
+                "UPDATE reports SET views = views + 1 WHERE id = %s",
+                (laporan['id'],)
+            )
+
+            # Check if the user has liked this report
+            cur.execute(
+                "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
+                (session['user_id'], laporan['id'])
+            )
+            laporan['has_liked'] = bool(cur.fetchone())
+
+            # Fetch response history for this report
+            cur.execute(
+                """
+                SELECT rp.status, rp.comment, rp.changed_at, u.name AS changed_by_name
+                FROM response_progress rp
+                JOIN responses res ON rp.response_id = res.id
+                JOIN users u ON rp.changed_by = u.id
+                WHERE res.report_id = %s
+                ORDER BY rp.changed_at ASC
+                """,
+                (laporan['id'],)
+            )
+            laporan['response_history'] = cur.fetchall()
+
+        # Commit the view updates
+        mysql.connection.commit()
+
+        # Fetch user's reports dengan sorting yang sama
+        query_user = """
+            SELECT 
+                r.id, 
+                r.description, 
+                r.type, 
+                r.province, 
+                r.regency, 
+                r.subdistrict, 
+                r.village, 
+                r.statement, 
+                r.created_at, 
+                r.voting, 
+                r.views, 
+                r.image,
+                res.response_status
+            FROM reports r
+            LEFT JOIN (
+                SELECT report_id, response_status
+                FROM responses
+                WHERE (report_id, created_at) IN (
+                    SELECT report_id, MAX(created_at)
+                    FROM responses
+                    GROUP BY report_id
+                )
+            ) res ON r.id = res.report_id
+            WHERE r.user_id = %s
+        """
+        # Tambahkan ORDER BY untuk user_laporan
+        if sort_by == 'likes-desc':
+            query_user += " ORDER BY r.voting DESC"
+        elif sort_by == 'likes-asc':
+            query_user += " ORDER BY r.voting ASC"
+
+        cur.execute(query_user, (session['user_id'],))
+        user_laporan = cur.fetchall()
+
+        # Fetch response history untuk user_laporan (tidak perlu tambah views lagi karena sudah dilakukan di all_laporan)
+        for laporan in user_laporan:
+            cur.execute(
+                "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
+                (session['user_id'], laporan['id'])
+            )
+            laporan['has_liked'] = bool(cur.fetchone())
+
+            # Fetch response history for this report
+            cur.execute(
+                """
+                SELECT rp.status, rp.comment, rp.changed_at, u.name AS changed_by_name
+                FROM response_progress rp
+                JOIN responses res ON rp.response_id = res.id
+                JOIN users u ON rp.changed_by = u.id
+                WHERE res.report_id = %s
+                ORDER BY rp.changed_at ASC
+                """,
+                (laporan['id'],)
+            )
+            laporan['response_history'] = cur.fetchall()
+
+        cur.close()
+
+        provinces, regencies, subdistricts, villages = get_location_baru_data()
+
+        return render_template(
+            'dashboard_user.html',
+            name=session['name'],
+            all_laporan=all_laporan,
+            user_laporan=user_laporan,
+            provinces=provinces,
+            regencies=regencies,
+            subdistricts=subdistricts,
+            villages=villages,
+            sort_by=sort_by  # Kirim parameter sorting ke template
+        )
+    except Exception as e:
+        flash(f'Error database: {str(e)}', 'danger')
+        logging.error(f"Database error during dashboard_user: {str(e)}")
+        return redirect(url_for('login'))
 
 # Tambah Laporan Form (GET)
 @app.route('/tambah_laporan', methods=['GET'])
@@ -410,14 +579,23 @@ def cari_laporan():
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cur.execute(query, params)
         all_laporan = cur.fetchall()
+
+        # Tambah views untuk setiap laporan setiap kali pencarian dilakukan
         for laporan in all_laporan:
             cur.execute(
-                "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
-                (session['user_id'], laporan['id'])
+                "UPDATE reports SET views = views + 1 WHERE id = %s",
+                (laporan['id'],)
             )
-            laporan['has_liked'] = bool(cur.fetchone())
+            if 'user_id' in session:
+                cur.execute(
+                    "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
+                    (session['user_id'], laporan['id'])
+                )
+                laporan['has_liked'] = bool(cur.fetchone())
 
+        mysql.connection.commit()
         cur.close()
+
         provinces, regencies, subdistricts, villages = get_location_baru_data()
 
         if 'user_id' in session and session['role'] == 'masyarakat':
@@ -483,147 +661,6 @@ def cari_laporan():
         flash(f'Error database: {str(e)}', 'danger')
         logging.error(f"Database error during cari_laporan: {str(e)}")
         return redirect(url_for('index'))
-
-# Dashboard Pengguna (Masyarakat)
-@app.route('/dashboard/user')
-def dashboard_user():
-    if 'user_id' not in session or session['role'] != 'masyarakat':
-        flash('Akses ditolak!', 'danger')
-        return redirect(url_for('login'))
-
-    # Ambil parameter sorting dari query string (default: likes-desc)
-    sort_by = request.args.get('sort', 'likes-desc')
-
-    try:
-        cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        # Fetch all reports dengan sorting berdasarkan voting
-        query_all = """
-            SELECT 
-                r.id, 
-                r.description, 
-                r.type, 
-                r.province, 
-                r.regency, 
-                r.subdistrict, 
-                r.village, 
-                r.statement, 
-                r.created_at, 
-                r.voting, 
-                r.views, 
-                r.image,
-                res.response_status
-            FROM reports r
-            LEFT JOIN (
-                SELECT report_id, response_status
-                FROM responses
-                WHERE (report_id, created_at) IN (
-                    SELECT report_id, MAX(created_at)
-                    FROM responses
-                    GROUP BY report_id
-                )
-            ) res ON r.id = res.report_id
-        """
-        # Tambahkan ORDER BY berdasarkan parameter sorting
-        if sort_by == 'likes-desc':
-            query_all += " ORDER BY r.voting DESC"
-        elif sort_by == 'likes-asc':
-            query_all += " ORDER BY r.voting ASC"
-
-        cur.execute(query_all)
-        all_laporan = cur.fetchall()
-
-        # Track views for each report
-        for laporan in all_laporan:
-            # Check if the user has already viewed this report
-            cur.execute(
-                "SELECT 1 FROM report_views WHERE user_id = %s AND report_id = %s",
-                (session['user_id'], laporan['id'])
-            )
-            has_viewed = bool(cur.fetchone())
-            
-            if not has_viewed:
-                # Increment views in reports table
-                cur.execute(
-                    "UPDATE reports SET views = views + 1 WHERE id = %s",
-                    (laporan['id'],)
-                )
-                # Record the view in report_views table
-                cur.execute(
-                    "INSERT INTO report_views (user_id, report_id, viewed_at) VALUES (%s, %s, %s)",
-                    (session['user_id'], laporan['id'], datetime.now())
-                )
-
-            # Check if the user has liked this report
-            cur.execute(
-                "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
-                (session['user_id'], laporan['id'])
-            )
-            laporan['has_liked'] = bool(cur.fetchone())
-
-        # Commit the view updates
-        mysql.connection.commit()
-
-        # Fetch user's reports dengan sorting yang sama
-        query_user = """
-            SELECT 
-                r.id, 
-                r.description, 
-                r.type, 
-                r.province, 
-                r.regency, 
-                r.subdistrict, 
-                r.village, 
-                r.statement, 
-                r.created_at, 
-                r.voting, 
-                r.views, 
-                r.image,
-                res.response_status
-            FROM reports r
-            LEFT JOIN (
-                SELECT report_id, response_status
-                FROM responses
-                WHERE (report_id, created_at) IN (
-                    SELECT report_id, MAX(created_at)
-                    FROM responses
-                    GROUP BY report_id
-                )
-            ) res ON r.id = res.report_id
-            WHERE r.user_id = %s
-        """
-        # Tambahkan ORDER BY untuk user_laporan
-        if sort_by == 'likes-desc':
-            query_user += " ORDER BY r.voting DESC"
-        elif sort_by == 'likes-asc':
-            query_user += " ORDER BY r.voting ASC"
-
-        cur.execute(query_user, (session['user_id'],))
-        user_laporan = cur.fetchall()
-        for laporan in user_laporan:
-            cur.execute(
-                "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
-                (session['user_id'], laporan['id'])
-            )
-            laporan['has_liked'] = bool(cur.fetchone())
-        cur.close()
-
-        provinces, regencies, subdistricts, villages = get_location_baru_data()
-
-        return render_template(
-            'dashboard_user.html',
-            name=session['name'],
-            all_laporan=all_laporan,
-            user_laporan=user_laporan,
-            provinces=provinces,
-            regencies=regencies,
-            subdistricts=subdistricts,
-            villages=villages,
-            sort_by=sort_by  # Kirim parameter sorting ke template
-        )
-    except Exception as e:
-        flash(f'Error database: {str(e)}', 'danger')
-        logging.error(f"Database error during dashboard_user: {str(e)}")
-        return redirect(url_for('login'))
 
 # Like Report
 @app.route('/like/<int:report_id>', methods=['POST'])
@@ -709,8 +746,7 @@ def dashboard_petugas():
                 FROM responses
                 WHERE (report_id, created_at) IN (
                     SELECT report_id, MAX(created_at)
-                    FROM responses
-                    GROUP BY report_id
+                    FROM responses GROUP BY report_id
                 )
             ) res ON r.id = res.report_id
             WHERE r.province = %s
@@ -726,8 +762,15 @@ def dashboard_petugas():
         cur.execute(query, params)
         all_laporan = cur.fetchall()
 
-        # Fetch response progress history for each report
+        # Tambah views untuk setiap laporan setiap kali halaman di-load
         for laporan in all_laporan:
+            # Increment views di tabel reports
+            cur.execute(
+                "UPDATE reports SET views = views + 1 WHERE id = %s",
+                (laporan['id'],)
+            )
+
+            # Fetch response progress history for each report
             cur.execute(
                 """
                 SELECT rp.status, rp.comment, rp.changed_at, u.name AS changed_by_name
@@ -748,7 +791,9 @@ def dashboard_petugas():
             )
             laporan['has_liked'] = bool(cur.fetchone())
 
+        mysql.connection.commit()
         cur.close()
+
         provinces, regencies, subdistricts, villages = get_location_baru_data()
         return render_template(
             'dashboard_petugas.html',
@@ -878,8 +923,7 @@ def dashboard_admin():
             FROM responses r
             WHERE (r.report_id, r.created_at) IN (
                 SELECT report_id, MAX(created_at)
-                FROM responses
-                GROUP BY report_id
+                FROM responses GROUP BY report_id
             )
             GROUP BY DATE_FORMAT(r.created_at, '%Y-%m')
             ORDER BY month
@@ -1107,8 +1151,7 @@ def export_pengaduan(province, start_date, end_date):
                 FROM responses
                 WHERE (report_id, created_at) IN (
                     SELECT report_id, MAX(created_at)
-                    FROM responses
-                    GROUP BY report_id
+                    FROM responses GROUP BY report_id
                 )
             ) res ON r.id = res.report_id
             WHERE r.province = %s
@@ -1157,9 +1200,6 @@ def export_pengaduan(province, start_date, end_date):
 # Comment Routes
 @app.route('/comment/<int:report_id>')
 def comment(report_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    
     try:
         cur = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
         cur.execute(
@@ -1184,8 +1224,7 @@ def comment(report_id):
                 FROM responses
                 WHERE (report_id, created_at) IN (
                     SELECT report_id, MAX(created_at)
-                    FROM responses
-                    GROUP BY report_id
+                    FROM responses GROUP BY report_id
                 )
             ) res ON r.id = res.report_id
             WHERE r.id = %s
@@ -1193,12 +1232,22 @@ def comment(report_id):
             (report_id,)
         )
         laporan = cur.fetchone()
+
         if laporan:
+            # Tambah views untuk laporan ini setiap kali halaman di-load
             cur.execute(
-                "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
-                (session['user_id'], laporan['id'])
+                "UPDATE reports SET views = views + 1 WHERE id = %s",
+                (laporan['id'],)
             )
-            laporan['has_liked'] = bool(cur.fetchone())
+            if 'user_id' in session:
+                # Check if the user has liked this report
+                cur.execute(
+                    "SELECT 1 FROM report_votes WHERE user_id = %s AND report_id = %s",
+                    (session['user_id'], laporan['id'])
+                )
+                laporan['has_liked'] = bool(cur.fetchone())
+
+        mysql.connection.commit()
         cur.close()
         
         if not laporan:
@@ -1208,7 +1257,7 @@ def comment(report_id):
     except Exception as e:
         flash(f'Error database: {str(e)}', 'danger')
         logging.error(f"Database error during comment: {str(e)}")
-        return redirect(url_for('dashboard_user'))
+        return redirect(url_for('index'))
 
 @app.route('/get_comments/<int:report_id>')
 def get_comments(report_id):
